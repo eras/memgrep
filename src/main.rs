@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{prelude::*, BufReader, SeekFrom};
 use regex::Regex;
 use regex::bytes::Regex as RegexB;
-use clap::{Arg, App, AppSettings};
+use clap::{Arg, App}; // AppSettings
 
 #[derive(Copy, Clone, Debug)]
 struct Permisisons {
