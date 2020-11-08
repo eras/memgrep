@@ -75,11 +75,10 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
 
 fn grepper(core: &str,
            mappings: Vec<MemMapping>,
-           re : RegexB) -> Result<(), Box<dyn std::error::Error>> {
+           re : RegexB) -> Result<u64, Box<dyn std::error::Error>> {
     let mut file = File::open(core)?;
 
-    println!("loopsies");
-    let mut num_matches = 0;
+    let mut num_matches : u64 = 0;
     
     for mapping in mappings.iter() {
         if mapping.perms.r {
@@ -100,9 +99,12 @@ fn grepper(core: &str,
             }
         }
     }
-    println!("fin, {:?} matches", num_matches);
-    
-    Ok (())
+    Ok (num_matches)
+}
+
+fn handle_pid(pid: u64, re: RegexB) -> Result<u64, Box<dyn std::error::Error>> {
+    let mapping = read_mapping(&format!("/proc/{}/maps", pid))?;
+    grepper(&format!("/proc/{}/mem", pid), mapping, re)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -133,9 +135,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         //         .value_hint(ValueHint::CommandWithArguments)
         // )
         .get_matches();
-    
-    let re: RegexB = RegexB::new(r"hello world").unwrap();
-    let mapping = read_mapping("/proc/self/maps")?;
-    grepper("/proc/self/mem", mapping, re)?;
-    Ok (())
+    if !args.is_present("pid") && !args.is_present("all") {
+        println!("You need to provide either --pid or --all");
+        Ok (())
+    } else {
+        let re: RegexB = RegexB::new(args.value_of("regex").unwrap())?;
+        if args.is_present("all") {
+            for entry in std::fs::read_dir("/proc")? {
+                match entry?.file_name().into_string().unwrap().parse::<u64>() {
+                    Ok (pid) => {
+                        match handle_pid(pid, re.clone()) {
+                            Ok (matches) => {
+                                if matches > 0 {
+                                    println!("{} {}", pid, matches);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {
+                        // skip non-numeric entries
+                    }
+                }
+            }
+        } else {
+            for pid in args.values_of("pid").unwrap() {
+                match handle_pid(pid.parse::<u64>().unwrap(), re.clone()) {
+                    Ok (matches) => {
+                        println!("{} {}", pid, matches);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok (())
+    }
 }
