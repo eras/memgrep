@@ -47,8 +47,10 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
             $
             ").unwrap();
     }
-    
+
+    let mut count = 0;
     let mappings = reader.lines().map(|line| {
+        count += 1;
         RE.captures(&line.unwrap()).and_then(|cap| {
             let begin = cap.name("begin").expect("begin").as_str();
             let end = cap.name("end").expect("end").as_str();
@@ -65,7 +67,7 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
                     label: label.to_string(),
                 }
             })
-        }).expect("failed to parse /proc/pid/mem")
+        }).expect(format!("failed to parse {} at {}", &filename, count).as_str())
     }).collect();
     
     Ok (mappings)
