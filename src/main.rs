@@ -3,7 +3,7 @@ use core::ops::Range;
 use lazy_static::lazy_static;
 use regex::bytes::Regex as RegexB;
 use regex::Regex;
-use std::fs::File;
+use std::fs::{read_link, File};
 use std::io::{prelude::*, BufReader, SeekFrom};
 
 #[derive(Copy, Clone, Debug)]
@@ -134,7 +134,11 @@ fn handle_pid(pid: u64, re: RegexB) -> Result<GrepResults, Box<dyn std::error::E
 
 fn show_matches(pid: u64, matches: GrepResults) {
     if matches.len() > 0 {
-        println!("{}:", pid);
+        let executable = read_link(format!("/proc/{}/exe", pid))
+            .map_or(String::from("(cannot read)"), |filename| {
+                String::from(filename.to_str().map_or("(invalid unicode)", |x| x))
+            });
+        println!("{} {}:", pid, executable);
         for match_ in matches {
             println!("  {:x}-{:x}", match_.range.start, match_.range.end);
         }
