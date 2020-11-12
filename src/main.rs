@@ -1,4 +1,5 @@
 use clap::{App, Arg}; // AppSettings
+use core::ops::Range;
 use lazy_static::lazy_static;
 use regex::bytes::Regex as RegexB;
 use regex::Regex;
@@ -85,13 +86,21 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
     Ok(mappings)
 }
 
-fn grepper(core: &str,
-           mappings: Vec<MemMapping>,
-           re : RegexB) -> Result<u64, Box<dyn std::error::Error>> {
+struct Match {
+    range: Range<usize>,
+}
+
+type GrepResults = Vec<Match>;
+
+fn grepper(
+    core: &str,
+    mappings: Vec<MemMapping>,
+    re: RegexB,
+) -> Result<GrepResults, Box<dyn std::error::Error>> {
     let mut file = File::open(core)?;
 
-    let mut num_matches : u64 = 0;
-    
+    let mut matches = Vec::new();
+
     for mapping in mappings.iter() {
         if mapping.perms.r {
             let size = (mapping.end - mapping.begin) as usize;
@@ -101,9 +110,12 @@ fn grepper(core: &str,
             }
             file.seek(SeekFrom::Start(mapping.begin))?;
             match file.read_exact(&mut buf) {
-                Ok (()) => {
-                    for capture in re.captures_iter(&buf) {
-                        num_matches += 1
+                Ok(()) => {
+                    for match_ in re.find_iter(&buf) {
+                        let mut range = match_.range();
+                        range.start += mapping.begin as usize;
+                        range.end += mapping.begin as usize;
+                        matches.push(Match { range })
                     }
                     // println!("done greppin'");
                 }
@@ -113,12 +125,21 @@ fn grepper(core: &str,
             }
         }
     }
-    Ok (num_matches)
+    Ok(matches)
 }
 
-fn handle_pid(pid: u64, re: RegexB) -> Result<u64, Box<dyn std::error::Error>> {
+fn handle_pid(pid: u64, re: RegexB) -> Result<GrepResults, Box<dyn std::error::Error>> {
     let mapping = read_mapping(&format!("/proc/{}/maps", pid))?;
     grepper(&format!("/proc/{}/mem", pid), mapping, re)
+}
+
+fn show_matches(pid: u64, matches: GrepResults) {
+    if matches.len() > 0 {
+        println!("{}:", pid);
+        for match_ in matches {
+            println!("  {:x}-{:x}", match_.range.start, match_.range.end);
+        }
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -165,31 +186,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if args.is_present("all") {
             for entry in std::fs::read_dir("/proc")? {
                 match entry?.file_name().into_string().unwrap().parse::<u64>() {
-                    Ok (pid) => {
-                        match handle_pid(pid, re.clone()) {
-                            Ok (matches) => {
-                                if matches > 0 {
-                                    println!("{} {}", pid, matches);
-                                }
-                            }
-                            _ => {}
+                    Ok(pid) => match handle_pid(pid, re.clone()) {
+                        Ok(matches) => {
+                            show_matches(pid, matches);
                         }
-                    }
+                        _ => {}
+                    },
                     _ => {
                         // skip non-numeric entries
                     }
                 }
             }
         } else {
-            for pid in args.values_of("pid").unwrap() {
-                match handle_pid(pid.parse::<u64>().unwrap(), re.clone()) {
-                    Ok (matches) => {
-                        println!("{} {}", pid, matches);
+            for pid_str in args.values_of("pid").unwrap() {
+                let pid = pid_str.parse::<u64>().unwrap();
+                match handle_pid(pid, re.clone()) {
+                    Ok(matches) => {
+                        show_matches(pid, matches);
                     }
                     _ => {}
                 }
             }
         }
-        Ok (())
+        Ok(())
     }
 }
