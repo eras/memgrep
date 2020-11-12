@@ -145,6 +145,31 @@ fn show_matches(pid: u64, matches: GrepResults) {
     }
 }
 
+fn all_pids() -> Result<Vec<u64>, Box<dyn std::error::Error>> {
+    let mut pids = Vec::new();
+    for entry in std::fs::read_dir("/proc")? {
+        match entry?.file_name().into_string().unwrap().parse::<u64>() {
+            Ok(pid) => pids.push(pid),
+            _ => {
+                // skip non-numeric entries
+            }
+        }
+    }
+    return Ok(pids);
+}
+
+fn handle_pids(pids: Vec<u64>, re: &RegexB) -> Result<(), Box<dyn std::error::Error>> {
+    for pid in pids {
+        match handle_pid(pid, re.clone()) {
+            Ok(matches) => {
+                show_matches(pid, matches);
+            }
+            _ => {}
+        }
+    }
+    return Ok(());
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = App::new("memgrep")
         .version("0.1.0")
@@ -187,29 +212,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         let re: RegexB = RegexB::new(args.value_of("regex").unwrap())?;
         if args.is_present("all") {
-            for entry in std::fs::read_dir("/proc")? {
-                match entry?.file_name().into_string().unwrap().parse::<u64>() {
-                    Ok(pid) => match handle_pid(pid, re.clone()) {
-                        Ok(matches) => {
-                            show_matches(pid, matches);
-                        }
-                        _ => {}
-                    },
-                    _ => {
-                        // skip non-numeric entries
-                    }
-                }
-            }
+            handle_pids(all_pids()?, &re);
         } else {
-            for pid_str in args.values_of("pid").unwrap() {
-                let pid = pid_str.parse::<u64>().unwrap();
-                match handle_pid(pid, re.clone()) {
-                    Ok(matches) => {
-                        show_matches(pid, matches);
-                    }
-                    _ => {}
-                }
-            }
+            let pids = args
+                .values_of("pid")
+                .unwrap()
+                .map(|pid_str| pid_str.parse::<u64>().unwrap())
+                .collect();
+            handle_pids(pids, &re);
         }
         Ok(())
     }
