@@ -5,6 +5,7 @@ use regex::bytes::Regex as RegexB;
 use regex::Regex;
 use std::fs::{read_link, File};
 use std::io::{prelude::*, BufReader, SeekFrom};
+use std::sync::{Arc, Mutex};
 
 #[derive(Copy, Clone, Debug)]
 struct Permisisons {
@@ -159,14 +160,22 @@ fn all_pids() -> Result<Vec<u64>, Box<dyn std::error::Error>> {
 }
 
 fn handle_pids(pids: Vec<u64>, re: &RegexB) -> Result<(), Box<dyn std::error::Error>> {
-    for pid in pids {
-        match handle_pid(pid, re.clone()) {
-            Ok(matches) => {
-                show_matches(pid, matches);
-            }
-            _ => {}
+    // TODO: it would be cooler to have a thread receive the results
+    // and thus replace the mutex?  it would also be path forward for
+    // json outupt
+    let output_mutex = Arc::new(Mutex::new(()));
+    rayon::scope(|scope| {
+        for pid in pids {
+            let output_mutex_ = Arc::clone(&output_mutex);
+            scope.spawn(move |_| match handle_pid(pid, re.clone()) {
+                Ok(matches) => {
+                    let _guard = output_mutex_.lock().unwrap();
+                    show_matches(pid, matches);
+                }
+                _ => {}
+            })
         }
-    }
+    });
     return Ok(());
 }
 
@@ -212,14 +221,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         let re: RegexB = RegexB::new(args.value_of("regex").unwrap())?;
         if args.is_present("all") {
-            handle_pids(all_pids()?, &re);
+            handle_pids(all_pids()?, &re)?;
         } else {
             let pids = args
                 .values_of("pid")
                 .unwrap()
                 .map(|pid_str| pid_str.parse::<u64>().unwrap())
                 .collect();
-            handle_pids(pids, &re);
+            handle_pids(pids, &re)?;
         }
         Ok(())
     }
