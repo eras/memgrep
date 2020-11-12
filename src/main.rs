@@ -41,7 +41,7 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
             (?P<end>[0-9a-f]+)\s
             (?P<perms>[r-][w-][x-][ps-])\s
             ([0-9a-f]+)\s
-            ([0-9]+:[0-9]+)\s
+            ([0-9a-f]+:[0-9a-f]+)\s
             ([0-9]+)\s+
             (?P<label>.*)
             $
