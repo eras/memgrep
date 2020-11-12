@@ -101,13 +101,12 @@ fn grepper(
 
     let mut matches = Vec::new();
 
+    let mut buf = Vec::with_capacity(1024000);
+
     for mapping in mappings.iter() {
         if mapping.perms.r {
             let size = (mapping.end - mapping.begin) as usize;
-            let mut buf = Vec::with_capacity(size);
-            unsafe {
-                buf.set_len(size);
-            }
+            buf.resize(size, 0);
             file.seek(SeekFrom::Start(mapping.begin))?;
             match file.read_exact(&mut buf) {
                 Ok(()) => {
