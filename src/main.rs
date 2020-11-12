@@ -148,7 +148,7 @@ fn show_matches(pid: u64, matches: GrepResults) {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = App::new("memgrep")
         .version("0.1.0")
-        .author("Erkki Seppälä <flux@inside.org>")
+        .author("Erkki Seppälä <erkki.seppala@vincit.fi>")
         .about("Grep for process memory spaces")
         .arg(
             Arg::new("all")
