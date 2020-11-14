@@ -26,11 +26,17 @@ enum Error {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub enum PS {
+    P,
+    S,
+}
+
+#[derive(Copy, Clone, Debug)]
 struct Permissions {
     r: bool,
     w: bool,
     x: bool,
-    p: bool, // TODO: s
+    p: Option<PS>,
 }
 
 #[derive(Debug)]
@@ -90,9 +96,14 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Error> {
                             end: u64::from_str_radix(end, 16).unwrap() /* assumed to contain valid hex */,
                             perms: Permissions {
                                 r: perms.chars().nth(0) == Some('r'),
-                                w: perms.chars().nth(0) == Some('w'),
-                                x: perms.chars().nth(0) == Some('x'),
-                                p: perms.chars().nth(0) == Some('p'),
+                                w: perms.chars().nth(1) == Some('w'),
+                                x: perms.chars().nth(2) == Some('x'),
+                                p: match perms.chars().nth(3) {
+				    Some ('p') => Some(PS::P),
+				    Some ('s') => Some(PS::S),
+				    Some ('-') => None,
+				    _ => panic!("Unsupported format in /proc/pid/maps"),
+				}
                             },
                             label: label.to_string(),
                         }
