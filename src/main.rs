@@ -8,7 +8,7 @@ use std::io::{prelude::*, BufReader, SeekFrom};
 use std::sync::{Arc, Mutex};
 
 #[derive(Copy, Clone, Debug)]
-struct Permisisons {
+struct Permissions {
     r: bool,
     w: bool,
     x: bool,
@@ -19,7 +19,7 @@ struct Permisisons {
 struct MemMapping {
     begin: u64,
     end: u64,
-    perms: Permisisons,
+    perms: Permissions,
     label: String,
 }
 
@@ -70,7 +70,7 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
                         MemMapping {
                             begin: u64::from_str_radix(begin, 16).unwrap(),
                             end: u64::from_str_radix(end, 16).unwrap(),
-                            perms: Permisisons {
+                            perms: Permissions {
                                 r: perms.chars().nth(0) == Some('r'),
                                 w: perms.chars().nth(0) == Some('w'),
                                 x: perms.chars().nth(0) == Some('x'),
