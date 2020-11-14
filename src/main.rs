@@ -1,11 +1,29 @@
 use clap::{App, Arg}; // AppSettings
 use core::ops::Range;
 use lazy_static::lazy_static;
+use regex;
 use regex::bytes::Regex as RegexB;
 use regex::Regex;
 use std::fs::{read_link, File};
-use std::io::{prelude::*, BufReader, SeekFrom};
+use std::io::{self, prelude::*, BufReader, SeekFrom};
 use std::sync::{Arc, Mutex};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+enum Error {
+    // TODO: nicer error messages?
+    // #[error("error: {0}")]
+    // Message(String),
+
+    #[error(transparent)]
+    ParseIntError(#[from] std::num::ParseIntError),
+
+    #[error(transparent)]
+    RegexError(#[from] regex::Error),
+
+    #[error(transparent)]
+    IOError(#[from] io::Error),
+}
 
 #[derive(Copy, Clone, Debug)]
 struct Permissions {
@@ -34,7 +52,7 @@ impl Clone for MemMapping {
     }
 }
 
-fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::Error>> {
+fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Error> {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
 
@@ -52,7 +70,7 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
             $
             "
         )
-        .unwrap();
+        .unwrap() /* we assume the regex is flawless */;
     }
 
     let mut count = 0;
@@ -60,7 +78,7 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
         .lines()
         .map(|line| {
             count += 1;
-            RE.captures(&line.unwrap())
+            RE.captures(&line.unwrap() /* TODO: we assume no IO errors */)
                 .and_then(|cap| {
                     let begin = cap.name("begin").expect("begin").as_str();
                     let end = cap.name("end").expect("end").as_str();
@@ -68,8 +86,8 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
                     let label = cap.name("label").expect("label").as_str();
                     Some({
                         MemMapping {
-                            begin: u64::from_str_radix(begin, 16).unwrap(),
-                            end: u64::from_str_radix(end, 16).unwrap(),
+                            begin: u64::from_str_radix(begin, 16).unwrap() /* assumed to contain valid hex */,
+                            end: u64::from_str_radix(end, 16).unwrap() /* assumed to contain valid hex */,
                             perms: Permissions {
                                 r: perms.chars().nth(0) == Some('r'),
                                 w: perms.chars().nth(0) == Some('w'),
@@ -80,6 +98,7 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Box<dyn std::error::E
                         }
                     })
                 })
+		// TODO: don't panic
                 .expect(format!("failed to parse {} at {}", &filename, count).as_str())
         })
         .collect();
@@ -93,11 +112,7 @@ struct Match {
 
 type GrepResults = Vec<Match>;
 
-fn grepper(
-    core: &str,
-    mappings: Vec<MemMapping>,
-    re: RegexB,
-) -> Result<GrepResults, Box<dyn std::error::Error>> {
+fn grepper(core: &str, mappings: Vec<MemMapping>, re: RegexB) -> Result<GrepResults, Error> {
     let mut file = File::open(core)?;
 
     let mut matches = Vec::new();
@@ -128,7 +143,7 @@ fn grepper(
     Ok(matches)
 }
 
-fn handle_pid(pid: u64, re: RegexB) -> Result<GrepResults, Box<dyn std::error::Error>> {
+fn handle_pid(pid: u64, re: RegexB) -> Result<GrepResults, Error> {
     let mapping = read_mapping(&format!("/proc/{}/maps", pid))?;
     grepper(&format!("/proc/{}/mem", pid), mapping, re)
 }
@@ -146,10 +161,15 @@ fn show_matches(pid: u64, matches: GrepResults) {
     }
 }
 
-fn all_pids() -> Result<Vec<u64>, Box<dyn std::error::Error>> {
+fn all_pids() -> Result<Vec<u64>, Error> {
     let mut pids = Vec::new();
     for entry in std::fs::read_dir("/proc")? {
-        match entry?.file_name().into_string().unwrap().parse::<u64>() {
+        match entry?
+            .file_name()
+            .into_string()
+            .unwrap() /* assumed to contain legal unicode */
+            .parse::<u64>()
+        {
             Ok(pid) => pids.push(pid),
             _ => {
                 // skip non-numeric entries
@@ -159,7 +179,7 @@ fn all_pids() -> Result<Vec<u64>, Box<dyn std::error::Error>> {
     return Ok(pids);
 }
 
-fn handle_pids(pids: Vec<u64>, re: &RegexB) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_pids(pids: Vec<u64>, re: &RegexB) -> Result<(), Error> {
     // TODO: it would be cooler to have a thread receive the results
     // and thus replace the mutex?  it would also be path forward for
     // json outupt
@@ -169,7 +189,7 @@ fn handle_pids(pids: Vec<u64>, re: &RegexB) -> Result<(), Box<dyn std::error::Er
             let output_mutex_ = Arc::clone(&output_mutex);
             scope.spawn(move |_| match handle_pid(pid, re.clone()) {
                 Ok(matches) => {
-                    let _guard = output_mutex_.lock().unwrap();
+                    let _guard = output_mutex_.lock().unwrap() /* assumed to succeed */;
                     show_matches(pid, matches);
                 }
                 _ => {}
@@ -179,7 +199,7 @@ fn handle_pids(pids: Vec<u64>, re: &RegexB) -> Result<(), Box<dyn std::error::Er
     return Ok(());
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Error> {
     let args = App::new("memgrep")
         .version("0.1.0")
         .author("Erkki Seppälä <erkki.seppala@vincit.fi>")
@@ -219,16 +239,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("You need to provide either --pid or --all");
         Ok(())
     } else {
-        let re: RegexB = RegexB::new(args.value_of("regex").unwrap())?;
+        let re: RegexB = RegexB::new(
+            args.value_of("regex").unwrap(), /* "regex" is assumed to exist */
+        )?;
         if args.is_present("all") {
             handle_pids(all_pids()?, &re)?;
         } else {
-            let pids = args
+            let pid_results: Vec<_> = args
                 .values_of("pid")
-                .unwrap()
-                .map(|pid_str| pid_str.parse::<u64>().unwrap())
+                .unwrap() // "pid" is assumed to exist
+                .map(|pid_str| pid_str.parse::<u64>())
                 .collect();
-            handle_pids(pids, &re)?;
+            let pids: Vec<_> = pid_results
+                .iter()
+                .filter_map(|result| Result::ok(result.clone()))
+                .collect();
+            let errors: Vec<_> = pid_results
+                .iter()
+                .filter_map(|result| Result::err(result.clone()))
+                .collect();
+            if errors.len() > 0 {
+                return Result::Err(Error::ParseIntError(errors[0].clone()));
+            } else {
+                handle_pids(pids, &re)?;
+            }
         }
         Ok(())
     }
