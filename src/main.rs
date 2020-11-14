@@ -11,9 +11,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 enum Error {
-    // TODO: nicer error messages?
-    // #[error("error: {0}")]
-    // Message(String),
+    #[error("error: {0}")]
+    Message(String),
 
     #[error(transparent)]
     ParseIntError(#[from] std::num::ParseIntError),
@@ -80,7 +79,7 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Error> {
     }
 
     let mut count = 0;
-    let mappings = reader
+    let mapping_results : Vec<_> = reader
         .lines()
         .map(|line| {
             count += 1;
@@ -109,12 +108,24 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Error> {
                         }
                     })
                 })
-		// TODO: don't panic
-                .expect(format!("failed to parse {} at {}", &filename, count).as_str())
+		.ok_or(format!("failed to parse {} at {}", &filename, count).to_owned())
         })
         .collect();
 
-    Ok(mappings)
+    let errors: Vec<_> = mapping_results
+        .iter()
+        .filter_map(|result| Result::err(result.clone()))
+        .collect();
+
+    if errors.len() > 0 {
+        Err(Error::Message(errors[0].clone()))
+    } else {
+	let mappings: Vec<_> = mapping_results
+            .iter()
+            .filter_map(|result| Result::ok(result.clone()))
+            .collect();
+	Ok(mappings)
+    }
 }
 
 struct Match {
