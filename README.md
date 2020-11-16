@@ -41,7 +41,10 @@ using `sudo` to run the binary as root.
         -p, --pid <pid>...         Process id to grep
 
 You need to provide either `-p pid` or `-a`; you must provide exactly
-one regex.
+one [regex](https://docs.rs/regex/1.4.2/regex/#syntax). For
+case-insensitive matching you can prefix your regex with `(?i)` (using
+the [regex flag
+syntax](https://docs.rs/regex/1.4.2/regex/#grouping-and-flags)).
 
 # why?
 
