@@ -1,0 +1,54 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: tag
+jobs:
+  build_and_test:
+    name: Memgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      # https://stackoverflow.com/a/58178121
+      - name: Set release information
+        id: vars
+        run: echo ::set-output name=git_describe::"$(git describe --tags)"
+      # https://github.com/actions/create-release
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Automatically created from tag.
+          draft: false
+          prerelease: false
+      - name: build
+        env:
+          GIT_DESCRIBE: ${{ steps.vars.outputs.git_describe}}
+        run: cargo build --release --all-features
+      - run: strip target/release/memgrep
+      - uses: actions/upload-artifact@v2
+        with:
+          name: memgrep-binary
+          path: |
+            target/release/memgrep
+      # https://github.com/actions/upload-release-asset
+      - name: Upload Release Asset
+        id: upload_release_asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/release/memgrep
+          asset_name: memgrep-binary-${{ steps.vars.outputs.git_describe }}-linux-x86_64.bin
+          asset_content_type: application/octet-stream
