@@ -80,9 +80,9 @@ Fun stuff to try: `sudo memgrep -a -o '.{20}backdoor.{20}'`.
 # compiling
 
 `cargo build`. You can also download a binary for Linux/x86_64 from
-the [GitHub releases page](../../releases/). Note that debug mode
-build (as produced by default with `cargo build`) is tons slower than
-the release mode one.
+the [GitHub releases page](../../releases/latest/). Note that debug
+mode build (as produced by default with `cargo build`) is tons slower
+than the release mode one.
 
 # installing
 
