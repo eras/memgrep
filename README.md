@@ -16,7 +16,7 @@ it in parallel with the CPUs you have.
 
     % memgrep --help
 
-    memgrep 0.1.0
+    memgrep 1.1.0
     Erkki Seppälä <erkki.seppala@vincit.fi>
     Process address space grepping tool
     
