@@ -1,4 +1,4 @@
-use clap::{App, Arg}; // AppSettings
+use clap::{App, AppSettings, Arg};
 use core::ops::Range;
 use lazy_static::lazy_static;
 use regex;
@@ -280,21 +280,8 @@ fn main() -> Result<(), Error> {
                 .takes_value(true)
                 .about("Process id to grep"),
         )
-        .arg(
-            Arg::new("regex")
-                .long("regex")
-                .short('r')
-                .required(true)
-                .multiple(false)
-                .takes_value(true)
-                .about("Regular expression to use"),
-        )
-        //.setting(AppSettings::TrailingVarArg)
-        // .arg(
-        //     Arg::new("regex")
-        //         .multiple(true)
-        //         .value_hint(ValueHint::CommandWithArguments)
-        // )
+        .setting(AppSettings::TrailingVarArg)
+        .arg(Arg::new("regex").multiple(false).required(true))
         .get_matches();
     if !args.is_present("pid") && !args.is_present("all") {
         println!("You need to provide either --pid or --all");

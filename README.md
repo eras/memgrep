@@ -21,7 +21,7 @@ it in parallel with the CPUs you have.
     Grep for process memory spaces
     
     USAGE:
-        memgrep [FLAGS] [OPTIONS] --regexp <regex>...
+        memgrep [FLAGS] [OPTIONS] [--] [regex]
     
     FLAGS:
         -a, --all             Grep all processes
@@ -33,10 +33,9 @@ it in parallel with the CPUs you have.
     
     OPTIONS:
         -p, --pid <pid>...         Process id to grep
-        -r, --regexp <regex>...    Regular expresison to use
 
 You need to provide either `-p pid` or `-a`; you must provide exactly
-one `-r regex`.
+one regex.
 
 # why?
 
