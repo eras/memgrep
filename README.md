@@ -34,6 +34,7 @@ using `sudo` to run the binary as root.
         -c, --count           Show only the number of non-zero matches
             --include-self    Include also this process in the results (implied by --pids)
         -l, --list            Show list the processes, not the matches
+        -o, --show-content    Show the contents of the match (useful when using wildcards in regex)
         -h, --help            Prints help information
         -V, --version         Prints version information
     

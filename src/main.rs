@@ -53,6 +53,7 @@ struct Config {
     only_count: bool,
     only_list: bool,
     include_self: bool,
+    show_content: bool,
 }
 
 impl Clone for MemMapping {
@@ -174,9 +175,39 @@ fn grepper(core: &str, mappings: Vec<MemMapping>, re: &RegexB) -> Result<GrepRes
     Ok(matches)
 }
 
+fn core_of_pid(pid: u64) -> String {
+    format!("/proc/{}/mem", pid)
+}
+
 fn handle_pid(pid: u64, re: &RegexB) -> Result<GrepResults, Error> {
     let mapping = read_mapping(&format!("/proc/{}/maps", pid))?;
-    grepper(&format!("/proc/{}/mem", pid), mapping, re)
+    grepper(&core_of_pid(pid), mapping, re)
+}
+
+fn dump_bytes(bytes: &Vec<u8>) {
+    let mut was_hex = false;
+    for byte in bytes {
+        if *byte >= 32 && *byte <= 127 {
+            print!("{}{}", if was_hex { " " } else { "" }, *byte as char);
+            was_hex = false;
+        } else {
+            print!(" 0x{:02x}", *byte);
+            was_hex = true;
+        }
+    }
+    println!("");
+}
+
+fn dump_match(pid: u64, match_: &Match) -> Result<(), Error> {
+    let mut file = File::open(core_of_pid(pid))?;
+
+    let size = match_.range.end - match_.range.start;
+    let mut buf = Vec::with_capacity(size);
+    buf.resize(size, 0);
+    file.seek(SeekFrom::Start(match_.range.start as u64))?;
+    file.read_exact(&mut buf)?;
+    dump_bytes(&buf);
+    Ok(())
 }
 
 fn show_matches(pid: u64, matches: GrepResults, config: &Config) {
@@ -193,7 +224,16 @@ fn show_matches(pid: u64, matches: GrepResults, config: &Config) {
         } else {
             println!(":");
             for match_ in matches {
-                println!("  {:x}-{:x}", match_.range.start, match_.range.end);
+                print!("  {:x}-{:x}", match_.range.start, match_.range.end);
+                if config.show_content {
+                    print!(": ");
+                    match dump_match(pid, &match_) {
+                        Ok(()) => {}
+                        Err(_) => println!("error while reading memory"),
+                    }
+                } else {
+                    println!("")
+                }
             }
         }
     }
@@ -272,6 +312,13 @@ fn main() -> Result<(), Error> {
                 .about("Include also this process in the results (implied by --pids)"),
         )
         .arg(
+            Arg::new("show-content")
+                .long("show-content")
+                .short('o')
+                .takes_value(false)
+                .about("Show the contents of the match (useful when using wildcards in regex)"),
+        )
+        .arg(
             Arg::new("pid")
                 .long("pid")
                 .short('p')
@@ -296,6 +343,7 @@ fn main() -> Result<(), Error> {
             only_count: args.is_present("count"),
             only_list: args.is_present("list"),
             include_self: args.is_present("include-self"),
+            show_content: args.is_present("show-content"),
         };
         if args.is_present("all") {
             config.pids = all_pids()?;
