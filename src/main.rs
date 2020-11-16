@@ -225,13 +225,13 @@ fn main() -> Result<(), Error> {
     let args = App::new("memgrep")
         .version(option_env!("GIT_DESCRIBE").unwrap_or_else(|| env!("VERGEN_SEMVER")))
         .author("Erkki Seppälä <erkki.seppala@vincit.fi>")
-        .about("Grep for process memory spaces")
+        .about("Process address space grepping tool")
         .arg(
             Arg::new("all")
                 .long("all")
                 .short('a')
                 .takes_value(false)
-                .about("Grep all processes"),
+                .about("Choose all processes for grepping"),
         )
         .arg(
             Arg::new("pid")
@@ -243,16 +243,16 @@ fn main() -> Result<(), Error> {
         )
         .arg(
             Arg::new("regex")
-                .long("regexp")
+                .long("regex")
                 .short('r')
                 .required(true)
-                .multiple(true)
+                .multiple(false)
                 .takes_value(true)
-                .about("Regular expresison to use"),
+                .about("Regular expression to use"),
         )
         //.setting(AppSettings::TrailingVarArg)
         // .arg(
-        //     Arg::new("regexp")
+        //     Arg::new("regex")
         //         .multiple(true)
         //         .value_hint(ValueHint::CommandWithArguments)
         // )
