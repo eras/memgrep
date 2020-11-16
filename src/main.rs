@@ -50,6 +50,7 @@ struct MemMapping {
 struct Config {
     pids: Vec<u64>,
     re: RegexB,
+    only_count: bool,
 }
 
 impl Clone for MemMapping {
@@ -176,16 +177,21 @@ fn handle_pid(pid: u64, re: &RegexB) -> Result<GrepResults, Error> {
     grepper(&format!("/proc/{}/mem", pid), mapping, re)
 }
 
-fn show_matches(pid: u64, matches: GrepResults) {
+fn show_matches(pid: u64, matches: GrepResults, config: &Config) {
     if matches.len() > 0 {
         let executable = read_link(format!("/proc/{}/exe", pid))
             .map_or(String::from("(cannot read)"), |filename| {
                 String::from(filename.to_str().map_or("(invalid unicode)", |x| x))
             });
-        println!("{} {}:", pid, executable);
-        for match_ in matches {
-            println!("  {:x}-{:x}", match_.range.start, match_.range.end);
-        }
+        print!("{} {}:", pid, executable);
+	if config.only_count {
+	    println!(" {}", matches.len());
+	} else {
+	    println!("");
+            for match_ in matches {
+		println!("  {:x}-{:x}", match_.range.start, match_.range.end);
+            }
+	}
     }
 }
 
@@ -218,7 +224,7 @@ fn handle_pids(config: &Config) -> Result<(), Error> {
             scope.spawn(move |_| match handle_pid(*pid, &config.re) {
                 Ok(matches) => {
                     let _guard = output_mutex_.lock().unwrap() /* assumed to succeed */;
-                    show_matches(*pid, matches);
+                    show_matches(*pid, matches, config);
                 }
                 _ => {}
             })
@@ -238,6 +244,13 @@ fn main() -> Result<(), Error> {
                 .short('a')
                 .takes_value(false)
                 .about("Choose all processes for grepping"),
+        )
+        .arg(
+            Arg::new("count")
+                .long("count")
+                .short('c')
+                .takes_value(false)
+                .about("Show only the number of non-zero matches"),
         )
         .arg(
             Arg::new("pid")
@@ -270,11 +283,13 @@ fn main() -> Result<(), Error> {
         let re: RegexB = RegexB::new(
             args.value_of("regex").unwrap(), /* "regex" is assumed to exist */
         )?;
+	let mut config = Config {
+	    pids: Vec::new(),
+	    re: re.clone(),
+	    only_count: args.is_present("count"),
+	};
         if args.is_present("all") {
-	    let config = Config {
-		pids: all_pids()?,
-		re: re.clone(),
-	    };
+	    config.pids = all_pids()?;
             handle_pids(&config)?;
         } else {
             let pid_results: Vec<_> = args
@@ -293,10 +308,7 @@ fn main() -> Result<(), Error> {
             if errors.len() > 0 {
                 return Result::Err(Error::ParseIntError(errors[0].clone()));
             } else {
-		let config = Config {
-		    pids: pids,
-		    re: re.clone(),
-		};
+		config.pids = pids;
                 handle_pids(&config)?;
             }
         }

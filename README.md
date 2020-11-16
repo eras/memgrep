@@ -25,6 +25,7 @@ it in parallel with the CPUs you have.
     
     FLAGS:
         -a, --all        Grep all processes
+        -c, --count      Show only the number of non-zero matches
         -h, --help       Prints help information
         -V, --version    Prints version information
     
