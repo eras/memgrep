@@ -18,7 +18,7 @@ it in parallel with the CPUs you have.
 
     memgrep 0.1.0
     Erkki Seppälä <erkki.seppala@vincit.fi>
-    Grep for process memory spaces
+    Process address space grepping tool
     
     USAGE:
         memgrep [FLAGS] [OPTIONS] [--] [regex]
