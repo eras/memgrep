@@ -65,7 +65,8 @@ can affect your ability to run that command.
 
 # compiling
 
-`cargo build`
+`cargo build`. You can also download a binary for Linux/x86_64 from
+the [GitHub releases page](releases/).
 
 # installing
 
