@@ -129,11 +129,11 @@ fn read_mapping(filename: &str) -> Result<Vec<MemMapping>, Error> {
     if errors.len() > 0 {
         Err(Error::Message(errors[0].clone()))
     } else {
-	let mappings: Vec<_> = mapping_results
+        let mappings: Vec<_> = mapping_results
             .iter()
             .filter_map(|result| Result::ok(result.clone()))
             .collect();
-	Ok(mappings)
+        Ok(mappings)
     }
 }
 
@@ -186,16 +186,16 @@ fn show_matches(pid: u64, matches: GrepResults, config: &Config) {
                 String::from(filename.to_str().map_or("(invalid unicode)", |x| x))
             });
         print!("{} {}", pid, executable);
-	if config.only_list {
-	    println!("");
-	} else if config.only_count {
-	    println!(": {}", matches.len());
-	} else {
-	    println!(":");
+        if config.only_list {
+            println!("");
+        } else if config.only_count {
+            println!(": {}", matches.len());
+        } else {
+            println!(":");
             for match_ in matches {
-		println!("  {:x}-{:x}", match_.range.start, match_.range.end);
+                println!("  {:x}-{:x}", match_.range.start, match_.range.end);
             }
-	}
+        }
     }
 }
 
@@ -224,16 +224,16 @@ fn handle_pids(config: &Config) -> Result<(), Error> {
     let output_mutex = Arc::new(Mutex::new(()));
     rayon::scope(|scope| {
         for pid in &config.pids {
-	    if config.include_self || *pid != std::process::id() as u64 {
-		let output_mutex_ = Arc::clone(&output_mutex);
-		scope.spawn(move |_| match handle_pid(*pid, &config.re) {
+            if config.include_self || *pid != std::process::id() as u64 {
+                let output_mutex_ = Arc::clone(&output_mutex);
+                scope.spawn(move |_| match handle_pid(*pid, &config.re) {
                     Ok(matches) => {
-			let _guard = output_mutex_.lock().unwrap() /* assumed to succeed */;
-			show_matches(*pid, matches, config);
+                        let _guard = output_mutex_.lock().unwrap() /* assumed to succeed */;
+                        show_matches(*pid, matches, config);
                     }
                     _ => {}
-		})
-	    }
+                })
+            }
         }
     });
     return Ok(());
@@ -302,15 +302,15 @@ fn main() -> Result<(), Error> {
         let re: RegexB = RegexB::new(
             args.value_of("regex").unwrap(), /* "regex" is assumed to exist */
         )?;
-	let mut config = Config {
-	    pids: Vec::new(),
-	    re: re.clone(),
-	    only_count: args.is_present("count"),
-	    only_list: args.is_present("list"),
-	    include_self: args.is_present("include-self"),
-	};
+        let mut config = Config {
+            pids: Vec::new(),
+            re: re.clone(),
+            only_count: args.is_present("count"),
+            only_list: args.is_present("list"),
+            include_self: args.is_present("include-self"),
+        };
         if args.is_present("all") {
-	    config.pids = all_pids()?;
+            config.pids = all_pids()?;
             handle_pids(&config)?;
         } else {
             let pid_results: Vec<_> = args
@@ -329,8 +329,8 @@ fn main() -> Result<(), Error> {
             if errors.len() > 0 {
                 return Result::Err(Error::ParseIntError(errors[0].clone()));
             } else {
-		config.include_self = true;
-		config.pids = pids;
+                config.include_self = true;
+                config.pids = pids;
                 handle_pids(&config)?;
             }
         }
