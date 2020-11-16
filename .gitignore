@@ -1,3 +1,6 @@
 Cargo.lock
 *~
 target
+.emacs.desktop
+.emacs.desktop.lock
+.gdb_history
