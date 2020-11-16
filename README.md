@@ -68,8 +68,12 @@ can affect your ability to run that command.
 # compiling
 
 `cargo build`. You can also download a binary for Linux/x86_64 from
-the [GitHub releases page](../../releases/).
+the [GitHub releases page](../../releases/). Note that debug mode
+build (as produced by default with `cargo build`) is tons slower than
+the release mode one.
 
 # installing
 
-`cargo install --path .`
+..or you can just directly install it with `cargo`:
+
+`cargo install --git https://github.com/eras/memgrep`
