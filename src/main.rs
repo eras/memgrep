@@ -276,6 +276,7 @@ fn main() -> Result<(), Error> {
                 .long("pid")
                 .short('p')
                 .multiple(true)
+                .number_of_values(1)
                 .takes_value(true)
                 .about("Process id to grep"),
         )
