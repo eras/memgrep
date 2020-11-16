@@ -1,7 +1,7 @@
 # memgrep
 
 `memgrep` is a `grep` for `/proc/pid/mem`. It's licensed under the
-[MIT license](LICENCE.MIT).
+[MIT license](LICENSE.MIT).
 
 Why won't regular `grep` do? You can try it, but it will just
 immediately fail with an I/O error. This is because you can only read
