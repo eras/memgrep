@@ -12,6 +12,12 @@ So, basically, this tool combines parsing the `maps` file and `grep`ping
 those regions for given process ids, or for all processes, while doing
 it in parallel with the CPUs you have.
 
+Note that the value kernel parameter
+[`kernel.yama.ptrace_scope`](https://linux-audit.com/protect-ptrace-processes-kernel-yama-ptrace_scope/)
+can affect `memgrep` abilities, even among your own processes. So for
+best results you should choose between setting that value to `0`, or
+using `sudo` to run the binary as root.
+
 # usage
 
     % memgrep --help
