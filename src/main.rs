@@ -223,7 +223,7 @@ fn handle_pids(pids: Vec<u64>, re: &RegexB) -> Result<(), Error> {
 
 fn main() -> Result<(), Error> {
     let args = App::new("memgrep")
-        .version("0.1.0")
+        .version(env!("VERGEN_SEMVER"))
         .author("Erkki Seppälä <erkki.seppala@vincit.fi>")
         .about("Grep for process memory spaces")
         .arg(
