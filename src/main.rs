@@ -46,6 +46,12 @@ struct MemMapping {
     label: String,
 }
 
+#[derive(Debug)]
+struct Config {
+    pids: Vec<u64>,
+    re: RegexB,
+}
+
 impl Clone for MemMapping {
     fn clone(&self) -> Self {
         MemMapping {
@@ -134,7 +140,7 @@ struct Match {
 
 type GrepResults = Vec<Match>;
 
-fn grepper(core: &str, mappings: Vec<MemMapping>, re: RegexB) -> Result<GrepResults, Error> {
+fn grepper(core: &str, mappings: Vec<MemMapping>, re: &RegexB) -> Result<GrepResults, Error> {
     let mut file = File::open(core)?;
 
     let mut matches = Vec::new();
@@ -165,7 +171,7 @@ fn grepper(core: &str, mappings: Vec<MemMapping>, re: RegexB) -> Result<GrepResu
     Ok(matches)
 }
 
-fn handle_pid(pid: u64, re: RegexB) -> Result<GrepResults, Error> {
+fn handle_pid(pid: u64, re: &RegexB) -> Result<GrepResults, Error> {
     let mapping = read_mapping(&format!("/proc/{}/maps", pid))?;
     grepper(&format!("/proc/{}/mem", pid), mapping, re)
 }
@@ -201,18 +207,18 @@ fn all_pids() -> Result<Vec<u64>, Error> {
     return Ok(pids);
 }
 
-fn handle_pids(pids: Vec<u64>, re: &RegexB) -> Result<(), Error> {
+fn handle_pids(config: &Config) -> Result<(), Error> {
     // TODO: it would be cooler to have a thread receive the results
     // and thus replace the mutex?  it would also be path forward for
     // json outupt
     let output_mutex = Arc::new(Mutex::new(()));
     rayon::scope(|scope| {
-        for pid in pids {
+        for pid in &config.pids {
             let output_mutex_ = Arc::clone(&output_mutex);
-            scope.spawn(move |_| match handle_pid(pid, re.clone()) {
+            scope.spawn(move |_| match handle_pid(*pid, &config.re) {
                 Ok(matches) => {
                     let _guard = output_mutex_.lock().unwrap() /* assumed to succeed */;
-                    show_matches(pid, matches);
+                    show_matches(*pid, matches);
                 }
                 _ => {}
             })
@@ -265,7 +271,11 @@ fn main() -> Result<(), Error> {
             args.value_of("regex").unwrap(), /* "regex" is assumed to exist */
         )?;
         if args.is_present("all") {
-            handle_pids(all_pids()?, &re)?;
+	    let config = Config {
+		pids: all_pids()?,
+		re: re.clone(),
+	    };
+            handle_pids(&config)?;
         } else {
             let pid_results: Vec<_> = args
                 .values_of("pid")
@@ -283,7 +293,11 @@ fn main() -> Result<(), Error> {
             if errors.len() > 0 {
                 return Result::Err(Error::ParseIntError(errors[0].clone()));
             } else {
-                handle_pids(pids, &re)?;
+		let config = Config {
+		    pids: pids,
+		    re: re.clone(),
+		};
+                handle_pids(&config)?;
             }
         }
         Ok(())
