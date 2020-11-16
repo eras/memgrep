@@ -51,6 +51,7 @@ struct Config {
     pids: Vec<u64>,
     re: RegexB,
     only_count: bool,
+    only_list: bool,
 }
 
 impl Clone for MemMapping {
@@ -183,11 +184,13 @@ fn show_matches(pid: u64, matches: GrepResults, config: &Config) {
             .map_or(String::from("(cannot read)"), |filename| {
                 String::from(filename.to_str().map_or("(invalid unicode)", |x| x))
             });
-        print!("{} {}:", pid, executable);
-	if config.only_count {
-	    println!(" {}", matches.len());
-	} else {
+        print!("{} {}", pid, executable);
+	if config.only_list {
 	    println!("");
+	} else if config.only_count {
+	    println!(": {}", matches.len());
+	} else {
+	    println!(":");
             for match_ in matches {
 		println!("  {:x}-{:x}", match_.range.start, match_.range.end);
             }
@@ -253,6 +256,13 @@ fn main() -> Result<(), Error> {
                 .about("Show only the number of non-zero matches"),
         )
         .arg(
+            Arg::new("list")
+                .long("list")
+                .short('l')
+                .takes_value(false)
+                .about("Show list the processes, not the matches"),
+        )
+        .arg(
             Arg::new("pid")
                 .long("pid")
                 .short('p')
@@ -287,6 +297,7 @@ fn main() -> Result<(), Error> {
 	    pids: Vec::new(),
 	    re: re.clone(),
 	    only_count: args.is_present("count"),
+	    only_list: args.is_present("list"),
 	};
         if args.is_present("all") {
 	    config.pids = all_pids()?;
