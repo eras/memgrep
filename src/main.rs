@@ -52,6 +52,7 @@ struct Config {
     re: RegexB,
     only_count: bool,
     only_list: bool,
+    include_self: bool,
 }
 
 impl Clone for MemMapping {
@@ -223,14 +224,16 @@ fn handle_pids(config: &Config) -> Result<(), Error> {
     let output_mutex = Arc::new(Mutex::new(()));
     rayon::scope(|scope| {
         for pid in &config.pids {
-            let output_mutex_ = Arc::clone(&output_mutex);
-            scope.spawn(move |_| match handle_pid(*pid, &config.re) {
-                Ok(matches) => {
-                    let _guard = output_mutex_.lock().unwrap() /* assumed to succeed */;
-                    show_matches(*pid, matches, config);
-                }
-                _ => {}
-            })
+	    if config.include_self || *pid != std::process::id() as u64 {
+		let output_mutex_ = Arc::clone(&output_mutex);
+		scope.spawn(move |_| match handle_pid(*pid, &config.re) {
+                    Ok(matches) => {
+			let _guard = output_mutex_.lock().unwrap() /* assumed to succeed */;
+			show_matches(*pid, matches, config);
+                    }
+                    _ => {}
+		})
+	    }
         }
     });
     return Ok(());
@@ -261,6 +264,12 @@ fn main() -> Result<(), Error> {
                 .short('l')
                 .takes_value(false)
                 .about("Show list the processes, not the matches"),
+        )
+        .arg(
+            Arg::new("include-self")
+                .long("include-self")
+                .takes_value(false)
+                .about("Include also this process in the results (implied by --pids)"),
         )
         .arg(
             Arg::new("pid")
@@ -298,6 +307,7 @@ fn main() -> Result<(), Error> {
 	    re: re.clone(),
 	    only_count: args.is_present("count"),
 	    only_list: args.is_present("list"),
+	    include_self: args.is_present("include-self"),
 	};
         if args.is_present("all") {
 	    config.pids = all_pids()?;
@@ -319,6 +329,7 @@ fn main() -> Result<(), Error> {
             if errors.len() > 0 {
                 return Result::Err(Error::ParseIntError(errors[0].clone()));
             } else {
+		config.include_self = true;
 		config.pids = pids;
                 handle_pids(&config)?;
             }

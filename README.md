@@ -24,11 +24,12 @@ it in parallel with the CPUs you have.
         memgrep [FLAGS] [OPTIONS] --regexp <regex>...
     
     FLAGS:
-        -a, --all        Grep all processes
-        -c, --count      Show only the number of non-zero matches
-        -l, --list       Show list the processes, not the matches
-        -h, --help       Prints help information
-        -V, --version    Prints version information
+        -a, --all             Grep all processes
+        -c, --count           Show only the number of non-zero matches
+            --include-self    Include also this process in the results (implied by --pids)
+        -l, --list            Show list the processes, not the matches
+        -h, --help            Prints help information
+        -V, --version         Prints version information
     
     OPTIONS:
         -p, --pid <pid>...         Process id to grep
