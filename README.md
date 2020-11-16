@@ -75,6 +75,8 @@ Note that the value kernel parameter
 [`kernel.yama.ptrace_scope`](https://linux-audit.com/protect-ptrace-processes-kernel-yama-ptrace_scope/)
 can affect your ability to run that command.
 
+Fun stuff to try: `sudo memgrep -a -o '.{20}backdoor.{20}'`.
+
 # compiling
 
 `cargo build`. You can also download a binary for Linux/x86_64 from
