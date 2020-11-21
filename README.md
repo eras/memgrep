@@ -45,10 +45,9 @@ using `sudo` to run the binary as root.
         -p, --pid <pid>...         Process id to grep
 
 You need to provide either `-p pid` or `-a`; you must provide exactly
-one [regex](https://docs.rs/regex/1.4.2/regex/#syntax). For
+one [pcre regex](https://www.pcre.org/original/doc/html/pcrepattern.html). For
 case-insensitive matching you can prefix your regex with `(?i)` (using
-the [regex flag
-syntax](https://docs.rs/regex/1.4.2/regex/#grouping-and-flags)).
+the [one of the supported option modifiers](https://intel.github.io/hyperscan/dev-reference/compilation.html#supported-constructs)).
 
 # why?
 
@@ -80,12 +79,16 @@ can affect your ability to run that command.
 
 Fun stuff to try: `sudo memgrep -a -o '.{20}backdoor.{20}'`.
 
+# prerequisites
+
+`sudo apt-get install libhyperscan-dev`
+
 # compiling
 
 `cargo build`. You can also download a binary for Linux/x86_64 from
-the [GitHub releases page](../../releases/latest/). Note that debug
-mode build (as produced by default with `cargo build`) is tons slower
-than the release mode one.
+the [GitHub releases page](../../releases/latest/). With the scanning
+work implemented in the HyperScan library, the speed of operation is
+similar between release and debug builds.
 
 # installing
 
