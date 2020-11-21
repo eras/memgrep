@@ -35,7 +35,7 @@ jobs:
       - name: build
         env:
           GIT_DESCRIBE: ${{ steps.vars.outputs.git_describe}}
-        run: cargo build --release --all-features
+        run: cargo +nightly build --release --all-features
       - run: strip target/release/memgrep
       - uses: actions/upload-artifact@v2
         with:
