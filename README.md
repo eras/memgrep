@@ -4,7 +4,9 @@
 [MIT license](LICENSE.MIT).
 
 The binaries are also bound by the [Hyperscan
-license](doc/COPYING.hyperscan) due to static linking.
+license](doc/COPYING.hyperscan) due to static linking. Well, would be
+if the static linking worked. For the time being you need to `sudo apt
+install libhyperscan5`.
 
 Why won't regular `grep` do? You can try it, but it will just
 immediately fail with an I/O error. This is because you can only read
