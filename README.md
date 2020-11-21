@@ -49,6 +49,14 @@ one [pcre regex](https://www.pcre.org/original/doc/html/pcrepattern.html). For
 case-insensitive matching you can prefix your regex with `(?i)` (using
 the [one of the supported option modifiers](https://intel.github.io/hyperscan/dev-reference/compilation.html#supported-constructs)).
 
+Note that due to used command line parser it is currently impossible
+to provide non-utf8 parameters, as there is no function to provide
+patterns from file or as e.g. hex data. This means your searches will
+try match the UTF8 byte representation of your patterns. The searches
+themselves are implemented without regard for UTF8; as the tool is
+scanning memory directly I chose it makes no sense to support any
+particular encoding.
+
 # why?
 
 Why not?
