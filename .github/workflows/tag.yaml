@@ -10,9 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install libhyperscan-dev
+        run: sudo apt-get install libhyperscan-dev
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
       # https://stackoverflow.com/a/58178121
       - name: Set release information
         id: vars
