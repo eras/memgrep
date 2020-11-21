@@ -7,7 +7,10 @@ name: tag
 jobs:
   build_and_test:
     name: Memgrep
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
     steps:
       - uses: actions/checkout@v2
       - name: Install libhyperscan-dev
@@ -52,5 +55,5 @@ jobs:
           # https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./target/release/memgrep
-          asset_name: memgrep-binary-${{ steps.vars.outputs.git_describe }}-linux-x86_64.bin
+          asset_name: memgrep-binary-${{ steps.vars.outputs.git_describe }}-linux-x86_64-${{ matrix.os }}.bin
           asset_content_type: application/octet-stream
