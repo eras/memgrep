@@ -1,12 +1,20 @@
+#![feature(unboxed_closures)]
+#![feature(fn_traits)]
 use clap::{App, AppSettings, Arg};
 use core::ops::Range;
 use lazy_static::lazy_static;
-use regex::bytes::Regex as RegexB;
 use regex::Regex;
 use std::fs::{read_link, File};
 use std::io::{self, prelude::*, BufReader, SeekFrom};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
+
+use hyperscan::{
+    prelude::*, // Pattern, Database,
+    Patterns,
+    Streaming,
+};
+use std::iter::FromIterator;
 
 #[derive(Error, Debug)]
 enum Error {
@@ -48,7 +56,7 @@ struct MemMapping {
 #[derive(Debug)]
 struct Config {
     pids: Vec<u64>,
-    re: RegexB,
+    re: String,
     only_count: bool,
     only_list: bool,
     include_self: bool,
@@ -151,28 +159,162 @@ struct Match {
 
 type GrepResults = Vec<Match>;
 
-fn grepper(core: &str, mappings: Vec<MemMapping>, re: &RegexB) -> Result<GrepResults, Error> {
+struct MatcherCommon {
+    database: Database<Streaming>,
+}
+
+struct MatcherPerThread<'a> {
+    common: &'a MatcherCommon,
+    scratch: Scratch,
+}
+
+struct MatcherStream<'a> {
+    thread: &'a MatcherPerThread<'a>,
+    stream: Option<Stream>,
+}
+
+fn make_matcher_common(regexp: &str) -> MatcherCommon {
+    let pattern = Pattern::with_flags(
+        regexp,
+        CompileFlags::DOTALL | CompileFlags::MULTILINE | CompileFlags::SOM_LEFTMOST,
+    )
+    .expect("regexp error"); // TODO
+    let patterns = Patterns::from_iter(vec![pattern].into_iter());
+    let database = patterns.build::<Streaming>().expect("db");
+
+    MatcherCommon { database }
+}
+
+fn make_matcher_per_thread(matcher_common: &MatcherCommon) -> MatcherPerThread {
+    let scratch = matcher_common.database.alloc_scratch().expect("scratch");
+
+    MatcherPerThread {
+        common: &matcher_common,
+        scratch,
+    }
+}
+
+fn make_matcher_stream<'a>(matcher_per_thread: &'a MatcherPerThread) -> MatcherStream<'a> {
+    let stream = Some(
+        matcher_per_thread
+            .common
+            .database
+            .open_stream()
+            .expect("open stream"),
+    );
+
+    MatcherStream {
+        thread: matcher_per_thread,
+        stream,
+    }
+}
+
+struct MatcherCallback<'a> {
+    matches: &'a mut Vec<Match>,
+    offset: u64,
+}
+
+impl<'a> MatcherCallback<'a> {
+    fn callback(&mut self, _id: u32, from: u64, to: u64, _flags: u32) -> Matching {
+        let range = Range {
+            start: (from + self.offset) as usize,
+            end: (to + self.offset) as usize,
+        };
+        self.matches.push(Match { range });
+        Matching::Continue
+    }
+}
+
+impl<'a> FnOnce<(u32, u64, u64, u32)> for MatcherCallback<'a> {
+    type Output = Matching;
+    extern "rust-call" fn call_once(mut self, args: (u32, u64, u64, u32)) -> Matching {
+        self.call_mut(args)
+    }
+}
+
+impl<'a> FnMut<(u32, u64, u64, u32)> for MatcherCallback<'a> {
+    extern "rust-call" fn call_mut(&mut self, args: (u32, u64, u64, u32)) -> Matching {
+        self.callback(args.0, args.1, args.2, args.3)
+    }
+}
+
+fn make_matcher_callback<'a>(matches: &'a mut Vec<Match>, offset: u64) -> MatcherCallback<'a> {
+    MatcherCallback { matches, offset }
+}
+
+fn call_matcher<'a>(
+    matcher_stream: &MatcherStream<'a>,
+    callback: &mut MatcherCallback,
+    data: &[u8],
+) {
+    let stream = matcher_stream.stream.as_deref().expect("stream expected");
+    stream
+        .scan(data, &matcher_stream.thread.scratch, callback)
+        .expect("scan stream");
+}
+
+fn reset_matcher(matcher_stream: &mut MatcherStream, callback: &mut MatcherCallback) {
+    let stream = matcher_stream.stream.as_deref().expect("stream expected");
+    stream
+        .reset(&matcher_stream.thread.scratch, callback)
+        .expect("reset stream");
+}
+
+fn destroy_matcher(matcher_stream: &mut MatcherStream) {
+    matcher_stream
+        .stream
+        .take()
+        .expect("stream expected")
+        .close(&matcher_stream.thread.scratch, |_, _, _, _| {
+            Matching::Continue
+        })
+        .expect("close stream");
+}
+
+fn grepper(
+    core: &str,
+    mappings: Vec<MemMapping>,
+    matcher_per_thread: &MatcherPerThread,
+) -> Result<GrepResults, Error> {
     let mut file = File::open(core)?;
 
     let mut matches = Vec::new();
 
-    let mut buf = Vec::with_capacity(1024000);
+    let mut buf = [0; 65536];
+    let buf_len = buf.len();
 
+    let mut matcher_stream = make_matcher_stream(&matcher_per_thread);
     for mapping in mappings.iter() {
         if mapping.perms.r {
-            let size = (mapping.end - mapping.begin) as usize;
-            buf.resize(size, 0);
             file.seek(SeekFrom::Start(mapping.begin))?;
-            if let Ok(()) = file.read_exact(&mut buf) {
-                for match_ in re.find_iter(&buf) {
-                    let mut range = match_.range();
-                    range.start += mapping.begin as usize;
-                    range.end += mapping.begin as usize;
-                    matches.push(Match { range })
+            let mut offset = mapping.begin as usize;
+            while let Ok(n) =
+                file.read(&mut buf[0..std::cmp::min(buf_len, mapping.end as usize - offset)])
+            {
+                offset += n;
+                if n != buf.len() {
+                    let rest = &buf[0..n];
+                    call_matcher(
+                        &matcher_stream,
+                        &mut make_matcher_callback(&mut matches, mapping.begin),
+                        &rest,
+                    );
+                    break;
+                } else {
+                    call_matcher(
+                        &matcher_stream,
+                        &mut make_matcher_callback(&mut matches, mapping.begin),
+                        &buf,
+                    );
                 }
             }
+            reset_matcher(
+                &mut matcher_stream,
+                &mut make_matcher_callback(&mut matches, mapping.begin),
+            );
         }
     }
+    destroy_matcher(&mut matcher_stream);
     Ok(matches)
 }
 
@@ -180,9 +322,9 @@ fn core_of_pid(pid: u64) -> String {
     format!("/proc/{}/mem", pid)
 }
 
-fn handle_pid(pid: u64, re: &RegexB) -> Result<GrepResults, Error> {
+fn handle_pid(pid: u64, matcher_per_thread: &MatcherPerThread) -> Result<GrepResults, Error> {
     let mapping = read_mapping(&format!("/proc/{}/maps", pid))?;
-    grepper(&core_of_pid(pid), mapping, re)
+    grepper(&core_of_pid(pid), mapping, matcher_per_thread)
 }
 
 fn dump_bytes(bytes: &[u8]) {
@@ -254,21 +396,38 @@ fn all_pids() -> Result<Vec<u64>, Error> {
     Ok(pids)
 }
 
+struct PidHandler<'a> {
+    pid: u64,
+    config: &'a Config,
+    output_mutex: Arc<Mutex<()>>,
+}
+
+impl<'a> FnOnce<(&rayon::Scope<'_>, &MatcherCommon)> for PidHandler<'a> {
+    type Output = ();
+    extern "rust-call" fn call_once(self, args: (&rayon::Scope<'_>, &MatcherCommon)) {
+        if let Ok(matches) = handle_pid(self.pid, &make_matcher_per_thread(args.1)) {
+            let _guard = self.output_mutex.lock().unwrap() /* assumed to succeed */;
+            show_matches(self.pid, matches, self.config);
+        }
+    }
+}
+
 fn handle_pids(config: &Config) -> Result<(), Error> {
     // TODO: it would be cooler to have a thread receive the results
     // and thus replace the mutex?  it would also be path forward for
     // json outupt
     let output_mutex = Arc::new(Mutex::new(()));
+    let matcher_common = make_matcher_common(&config.re);
     rayon::scope(|scope| {
         for pid in &config.pids {
             if config.include_self || *pid != std::process::id() as u64 {
-                let output_mutex_ = Arc::clone(&output_mutex);
-                scope.spawn(move |_| {
-                    if let Ok(matches) = handle_pid(*pid, &config.re) {
-                        let _guard = output_mutex_.lock().unwrap() /* assumed to succeed */;
-                        show_matches(*pid, matches, config);
-                    }
-                })
+                let pid_handler = PidHandler {
+                    pid: *pid,
+                    config,
+                    // TODO: is this cloning fake in that it breaks sharing?
+                    output_mutex: Arc::clone(&output_mutex),
+                };
+                scope.spawn(|scope| pid_handler(scope, &matcher_common));
             }
         }
     });
@@ -330,12 +489,10 @@ fn main() -> Result<(), Error> {
         println!("You need to provide either --pid or --all");
         Ok(())
     } else {
-        let re: RegexB = RegexB::new(
-            args.value_of("regex").unwrap(), /* "regex" is assumed to exist */
-        )?;
+        let re = args.value_of("regex").unwrap(); /* "regex" is assumed to exist */
         let mut config = Config {
             pids: Vec::new(),
-            re,
+            re: String::from(re),
             only_count: args.is_present("count"),
             only_list: args.is_present("list"),
             include_self: args.is_present("include-self"),

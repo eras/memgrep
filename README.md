@@ -3,6 +3,9 @@
 `memgrep` is a `grep` for `/proc/pid/mem`. It's licensed under the
 [MIT license](LICENSE.MIT).
 
+The binaries are also bound by the [Hyperscan
+license](doc/COPYING.hyperscan) due to static linking.
+
 Why won't regular `grep` do? You can try it, but it will just
 immediately fail with an I/O error. This is because you can only read
 certain parts of the file and the parts you can read are listed in the
