@@ -19,6 +19,9 @@ jobs:
       - name: Set release information
         id: vars
         run: echo ::set-output name=git_describe::"$(git describe --tags)"
+      - name: Set annotated tag info information
+        id: vars2
+        run: echo ::set-output name=git_message::"$(git tag -n999 -l $(git describe --tags))"
       # https://github.com/actions/create-release
       - name: Create Release
         id: create_release
@@ -28,8 +31,7 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
-          body: |
-            Automatically created from tag.
+          body: ${{ steps.vars2.outputs.git_message}}
           draft: false
           prerelease: false
       - name: build
