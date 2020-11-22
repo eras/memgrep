@@ -10,8 +10,17 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: Install libhyperscan-dev
-        run: sudo apt-get install libhyperscan-dev
+      - name: Install hyperscan
+        run:
+          sudo apt-get install ragel ninja-build libboost-dev
+          && git clone https://github.com/intel/hyperscan
+          && mkdir hyperscan/build hyperscan/install
+          && cmake -B hyperscan/build -G Ninja -DCMAKE_INSTALL_PREFIX=$PWD/hyperscan/install hyperscan
+          && cmake --build hyperscan/build
+          && cmake --install hyperscan/build
+      - name: Install rust-hyperscan deps
+        run:
+          sudo apt-get install libc++-dev libc++abi-dev 
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -25,7 +34,7 @@ jobs:
       - name: build
         env:
           GIT_DESCRIBE: ${{ steps.vars.outputs.git_describe}}
-        run: cargo +nightly build --release --all-features
+        run: HYPERSCAN_ROOT=$PWD/hyperscan/install cargo +nightly build --release --all-features
       - run: strip target/release/memgrep
       - uses: actions/upload-artifact@v2
         with:
