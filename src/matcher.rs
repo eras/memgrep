@@ -1,11 +1,19 @@
+use anyhow;
 use core::ops::Range;
 use std::iter::FromIterator;
+use thiserror::Error;
 
 use hyperscan::{
     prelude::*, // Pattern, Database,
     Patterns,
     Streaming,
 };
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error(transparent)]
+    AnyError(#[from] anyhow::Error),
+}
 
 pub struct MatcherCommon {
     database: Database<Streaming>,
@@ -21,16 +29,15 @@ pub struct MatcherStream<'a> {
     stream: Option<Stream>,
 }
 
-pub fn make_matcher_common(regexp: &str) -> MatcherCommon {
+pub fn make_matcher_common(regexp: &str) -> Result<MatcherCommon, Error> {
     let pattern = Pattern::with_flags(
         regexp,
         CompileFlags::DOTALL | CompileFlags::MULTILINE | CompileFlags::SOM_LEFTMOST,
-    )
-    .expect("regexp error"); // TODO
+    )?;
     let patterns = Patterns::from_iter(vec![pattern].into_iter());
-    let database = patterns.build::<Streaming>().expect("db");
+    let database = patterns.build::<Streaming>()?;
 
-    MatcherCommon { database }
+    Ok(MatcherCommon { database })
 }
 
 pub fn make_matcher_per_thread(matcher_common: &MatcherCommon) -> MatcherPerThread {

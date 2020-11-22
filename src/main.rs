@@ -23,6 +23,9 @@ enum Error {
 
     #[error(transparent)]
     IOError(#[from] io::Error),
+
+    #[error(transparent)]
+    MatcherError(#[from] matcher::Error),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -298,7 +301,7 @@ fn handle_pids(config: &Config) -> Result<(), Error> {
     // and thus replace the mutex?  it would also be path forward for
     // json outupt
     let output_mutex = Arc::new(Mutex::new(()));
-    let matcher_common = matcher::make_matcher_common(&config.re);
+    let matcher_common = matcher::make_matcher_common(&config.re)?;
     rayon::scope(|scope| {
         for pid in &config.pids {
             if config.include_self || *pid != std::process::id() as u64 {
