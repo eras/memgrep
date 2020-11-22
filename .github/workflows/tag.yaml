@@ -22,6 +22,16 @@ jobs:
       - name: Set annotated tag info information
         id: vars2
         run: echo ::set-output name=git_message::"$(git tag -n999 -l $(git describe --tags))"
+      - name: build
+        env:
+          GIT_DESCRIBE: ${{ steps.vars.outputs.git_describe}}
+        run: cargo +nightly build --release --all-features
+      - run: strip target/release/memgrep
+      - uses: actions/upload-artifact@v2
+        with:
+          name: memgrep-binary
+          path: |
+            target/release/memgrep
       # https://github.com/actions/create-release
       - name: Create Release
         id: create_release
@@ -34,16 +44,6 @@ jobs:
           body: ${{ steps.vars2.outputs.git_message}}
           draft: false
           prerelease: false
-      - name: build
-        env:
-          GIT_DESCRIBE: ${{ steps.vars.outputs.git_describe}}
-        run: cargo +nightly build --release --all-features
-      - run: strip target/release/memgrep
-      - uses: actions/upload-artifact@v2
-        with:
-          name: memgrep-binary
-          path: |
-            target/release/memgrep
       # https://github.com/actions/upload-release-asset
       - name: Upload Release Asset
         id: upload_release_asset
