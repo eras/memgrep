@@ -1,6 +1,6 @@
 [package]
 name = "memgrep"
-version = "1.2.0"
+version = "1.2.1"
 authors = ["Erkki Seppälä <flux@inside.org>"]
 edition = "2018"
 build = "build.rs"
