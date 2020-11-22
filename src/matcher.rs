@@ -41,7 +41,10 @@ pub fn make_matcher_common(regexp: &str) -> Result<MatcherCommon, Error> {
 }
 
 pub fn make_matcher_per_thread(matcher_common: &MatcherCommon) -> MatcherPerThread {
-    let scratch = matcher_common.database.alloc_scratch().expect("scratch");
+    let scratch = matcher_common
+        .database
+        .alloc_scratch()
+        .expect("database.alloc_scratch");
 
     MatcherPerThread {
         common: &matcher_common,
@@ -55,7 +58,7 @@ pub fn make_matcher_stream<'a>(matcher_per_thread: &'a MatcherPerThread) -> Matc
             .common
             .database
             .open_stream()
-            .expect("open stream"),
+            .expect("database.open_stream"),
     );
 
     MatcherStream {
@@ -106,26 +109,26 @@ pub fn call_matcher<'a>(
     callback: &mut MatcherCallback,
     data: &[u8],
 ) {
-    let stream = matcher_stream.stream.as_deref().expect("stream expected");
+    let stream = matcher_stream.stream.as_deref().expect("stream");
     stream
         .scan(data, &matcher_stream.thread.scratch, callback)
-        .expect("scan stream");
+        .expect("stream.scan");
 }
 
 pub fn reset_matcher(matcher_stream: &mut MatcherStream, callback: &mut MatcherCallback) {
-    let stream = matcher_stream.stream.as_deref().expect("stream expected");
+    let stream = matcher_stream.stream.as_deref().expect("stream");
     stream
         .reset(&matcher_stream.thread.scratch, callback)
-        .expect("reset stream");
+        .expect("stream.reset");
 }
 
 pub fn destroy_matcher(matcher_stream: &mut MatcherStream) {
     matcher_stream
         .stream
         .take()
-        .expect("stream expected")
+        .expect("stream")
         .close(&matcher_stream.thread.scratch, |_, _, _, _| {
             Matching::Continue
         })
-        .expect("close stream");
+        .expect("stream.close");
 }
