@@ -322,40 +322,40 @@ fn main() -> Result<(), Error> {
     let args = App::new("memgrep")
         .version(option_env!("GIT_DESCRIBE").unwrap_or_else(|| env!("VERGEN_SEMVER")))
         .author("Erkki Seppälä <erkki.seppala@vincit.fi>")
-        .about("Process address space grepping tool")
+        .help("Process address space grepping tool")
         .arg(
             Arg::new("all")
                 .long("all")
                 .short('a')
                 .takes_value(false)
-                .about("Choose all processes for grepping"),
+                .help("Choose all processes for grepping"),
         )
         .arg(
             Arg::new("count")
                 .long("count")
                 .short('c')
                 .takes_value(false)
-                .about("Show only the number of non-zero matches"),
+                .help("Show only the number of non-zero matches"),
         )
         .arg(
             Arg::new("list")
                 .long("list")
                 .short('l')
                 .takes_value(false)
-                .about("Show list the processes, not the matches"),
+                .help("Show list the processes, not the matches"),
         )
         .arg(
             Arg::new("include-self")
                 .long("include-self")
                 .takes_value(false)
-                .about("Include also this process in the results (implied by --pids)"),
+                .help("Include also this process in the results (implied by --pids)"),
         )
         .arg(
             Arg::new("show-content")
                 .long("show-content")
                 .short('o')
                 .takes_value(false)
-                .about("Show the contents of the match (useful when using wildcards in regex)"),
+                .help("Show the contents of the match (useful when using wildcards in regex)"),
         )
         .arg(
             Arg::new("pid")
@@ -364,7 +364,7 @@ fn main() -> Result<(), Error> {
                 .multiple(true)
                 .number_of_values(1)
                 .takes_value(true)
-                .about("Process id to grep"),
+                .help("Process id to grep"),
         )
         .setting(AppSettings::TrailingVarArg)
         .arg(Arg::new("regex").multiple(false).required(true))
