@@ -27,7 +27,7 @@ jobs:
           GIT_DESCRIBE: ${{ steps.vars.outputs.git_describe}}
         run: cargo +nightly build --release --all-features
       - run: strip target/release/memgrep
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: memgrep-binary
           path: |
