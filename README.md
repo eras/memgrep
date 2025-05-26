@@ -95,13 +95,14 @@ Fun stuff to try: `sudo memgrep -a -o '.{20}backdoor.{20}'`.
 
 # compiling
 
-`cargo build`. You can also download a binary for Linux/x86_64 from
-the [GitHub releases page](../../releases/latest/). With the scanning
-work implemented in the HyperScan library, the speed of operation is
-similar between release and debug builds.
+`cargo +nightly build`. You can also download a binary for
+Linux/x86_64 from the [GitHub releases
+page](../../releases/latest/). With the scanning work implemented in
+the HyperScan library, the speed of operation is similar between
+release and debug builds.
 
 # installing
 
 ..or you can just directly install it with `cargo`:
 
-`cargo install --git https://github.com/eras/memgrep`
+`cargo install --locked --git https://github.com/eras/memgrep`
