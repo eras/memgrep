@@ -27,7 +27,7 @@ using `sudo` to run the binary as root.
 
     % memgrep --help
 
-    memgrep 1.2.1
+    memgrep 1.2.2
     Erkki Seppälä <erkki.seppala@vincit.fi>
     Process address space grepping tool
     
