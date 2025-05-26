@@ -7,7 +7,7 @@ name: tag
 jobs:
   build_and_test:
     name: Memgrep
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - name: Install libhyperscan-dev
