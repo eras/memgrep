@@ -323,7 +323,7 @@ fn main() -> Result<(), Error> {
     let args = App::new("memgrep")
         .version(option_env!("GIT_DESCRIBE").unwrap_or_else(|| env!("VERGEN_SEMVER")))
         .author("Erkki Seppälä <erkki.seppala@vincit.fi>")
-        .help("Process address space grepping tool")
+        .about("Process address space grepping tool")
         .arg(
             Arg::new("all")
                 .long("all")
