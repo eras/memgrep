@@ -368,6 +368,7 @@ fn main() -> Result<(), Error> {
                 .help("Process id to grep"),
         )
         .trailing_var_arg(true)
+        .arg_required_else_help(true)
         .arg(Arg::new("regex").multiple(false).required(true))
         .get_matches();
     if !args.is_present("pid") && !args.is_present("all") {
