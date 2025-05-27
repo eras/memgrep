@@ -1,6 +1,6 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
-use clap::{App, AppSettings, Arg};
+use clap::{App, Arg};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::fs::{read_link, File};
@@ -366,7 +366,7 @@ fn main() -> Result<(), Error> {
                 .takes_value(true)
                 .help("Process id to grep"),
         )
-        .setting(AppSettings::TrailingVarArg)
+        .trailing_var_arg(true)
         .arg(Arg::new("regex").multiple(false).required(true))
         .get_matches();
     if !args.is_present("pid") && !args.is_present("all") {
