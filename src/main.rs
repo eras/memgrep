@@ -34,6 +34,7 @@ pub enum PS {
     S,
 }
 
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 struct Permissions {
     r: bool,
